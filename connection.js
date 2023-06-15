@@ -434,8 +434,49 @@ function deleteRole() {
   });
 }
 
-// ...
+// Fetch employees with null value in manager_id
+function fetchManagers(callback) {
+  pool.query('SELECT * FROM employee WHERE manager_id IS NULL', (err, result) => {
+    if (err) {
+      console.error('Error retrieving managers:', err);
+    } else {
+      callback(result);
+    }
+  });
+}
 
+// View employees by manager
+function viewEmployeesByManager() {
+  fetchManagers((managers) => {
+    inquirer
+      .prompt([
+        {
+          type: 'list',
+          name: 'managerId',
+          message: 'Select the manager:',
+          choices: managers.map((manager) => ({
+            name: `${manager.first_name} ${manager.last_name}`,
+            value: manager.id
+          }))
+        }
+      ])
+      .then((answers) => {
+        const managerId = answers.managerId;
+        pool.query(
+          'SELECT * FROM employee WHERE manager_id = ?',
+          [managerId],
+          (err, result) => {
+            if (err) {
+              console.error('Error retrieving employees:', err);
+            } else {
+              console.table(result);
+            }
+            promptUser();
+          }
+        );
+      });
+  });
+}
 
 // Start the application
 promptUser();
