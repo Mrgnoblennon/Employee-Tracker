@@ -26,6 +26,12 @@ function promptUser() {
           'Add a role',
           'Add an employee',
           'Update an employee role',
+          'View employees by manager',
+          'View employees by department',
+          'Delete a department',
+          'Delete a role',
+          'Delete an employee',
+          'View total utilized budget of a department',
           'Exit'
         ]
       }
@@ -52,6 +58,24 @@ function promptUser() {
           break;
         case 'Update an employee role':
           updateEmployeeRole();
+          break;
+        case 'View employees by manager':
+          viewEmployeesByManager();
+          break;
+        case 'View employees by department':
+          viewEmployeesByDepartment();
+          break;
+        case 'Delete a department':
+          deleteDepartment();
+          break;
+        case 'Delete a role':
+          deleteRole();
+          break;
+        case 'Delete an employee':
+          deleteEmployee();
+          break;
+        case 'View total utilized budget of a department':
+          viewDepartmentBudget();
           break;
         case 'Exit':
           console.log('Goodbye!');
@@ -305,6 +329,113 @@ function updateEmployeeRole() {
     });
   });
 }
+
+// ...
+
+// Delete a department
+function deleteDepartment() {
+  pool.query('SELECT id, name FROM department', (err, departments) => {
+    if (err) {
+      console.error('Error retrieving departments:', err);
+      promptUser();
+      return;
+    }
+
+    inquirer
+      .prompt([
+        {
+          type: 'list',
+          name: 'departmentId',
+          message: 'Select the department to delete:',
+          choices: departments.map((department) => ({
+            name: department.name,
+            value: department.id
+          }))
+        }
+      ])
+      .then((answers) => {
+        pool.query('DELETE FROM department WHERE id = ?', [answers.departmentId], (err, results) => {
+          if (err) {
+            console.log('Cannot delete department. Please delete any roles in that current department.');
+          } else {
+            console.log('Department deleted successfully!');
+          }
+          promptUser();
+        });
+      });
+  });
+}
+
+// Delete an employee
+function deleteEmployee() {
+  pool.query('SELECT id, CONCAT(first_name, " ", last_name) AS name FROM employee', (err, employees) => {
+    if (err) {
+      console.error('Error retrieving employees:', err);
+      promptUser();
+      return;
+    }
+
+    inquirer
+      .prompt([
+        {
+          type: 'list',
+          name: 'employeeId',
+          message: 'Select the employee to delete:',
+          choices: employees.map((employee) => ({
+            name: employee.name,
+            value: employee.id
+          }))
+        }
+      ])
+      .then((answers) => {
+        pool.query('DELETE FROM employee WHERE id = ?', [answers.employeeId], (err, results) => {
+          if (err) {
+            console.error('Error deleting employee:', err);
+          } else {
+            console.log('Employee deleted successfully!');
+          }
+          promptUser();
+        });
+      });
+  });
+}
+
+// Delete a role
+function deleteRole() {
+  pool.query('SELECT id, title FROM role', (err, roles) => {
+    if (err) {
+      console.error('Error retrieving roles:', err);
+      promptUser();
+      return;
+    }
+
+    inquirer
+      .prompt([
+        {
+          type: 'list',
+          name: 'roleId',
+          message: 'Select the role to delete:',
+          choices: roles.map((role) => ({
+            name: role.title,
+            value: role.id
+          }))
+        }
+      ])
+      .then((answers) => {
+        pool.query('DELETE FROM role WHERE id = ?', [answers.roleId], (err, results) => {
+          if (err) {
+            console.log('Cannot delete role. Please unassign any employees in that current role.');
+          } else {
+            console.log('Role deleted successfully!');
+          }
+          promptUser();
+        });
+      });
+  });
+}
+
+// ...
+
 
 // Start the application
 promptUser();
