@@ -203,75 +203,95 @@ function addRole() {
   });
 }
 
-// Add an employee
 function addEmployee() {
-  // Retrieve role titles and ids to display in the prompt
-  pool.query('SELECT id, title FROM role', (err, roles) => {
+  // Fetch departments from the database
+  pool.query('SELECT id, name FROM department', (err, departments) => {
     if (err) {
-      console.error('Error retrieving roles:', err);
+      console.error('Error retrieving departments:', err);
       promptUser();
       return;
     }
 
-    // Retrieve employee names and ids to display as manager options
-    pool.query('SELECT id, CONCAT(first_name, " ", last_name) AS name FROM employee', (err, employees) => {
+    // Retrieve role titles and ids to display in the prompt
+    pool.query('SELECT id, title FROM role', (err, roles) => {
       if (err) {
-        console.error('Error retrieving employees:', err);
+        console.error('Error retrieving roles:', err);
         promptUser();
         return;
       }
 
-      inquirer
-        .prompt([
-          {
-            type: 'input',
-            name: 'firstName',
-            message: "Enter the employee's first name:"
-          },
-          {
-            type: 'input',
-            name: 'lastName',
-            message: "Enter the employee's last name:"
-          },
-          {
-            type: 'list',
-            name: 'roleId',
-            message: "Select the employee's role:",
-            choices: roles.map((role) => ({
-              name: role.title,
-              value: role.id
-            }))
-          },
-          {
-            type: 'list',
-            name: 'managerId',
-            message: "Select the employee's manager:",
-            choices: [
-              { name: 'None', value: null },
-              ...employees.map((employee) => ({
-                name: employee.name,
-                value: employee.id
+      // Retrieve employee names and ids to display as manager options
+      pool.query('SELECT id, CONCAT(first_name, " ", last_name) AS name FROM employee', (err, employees) => {
+        if (err) {
+          console.error('Error retrieving employees:', err);
+          promptUser();
+          return;
+        }
+
+        inquirer
+          .prompt([
+            {
+              type: 'input',
+              name: 'firstName',
+              message: "Enter the employee's first name:"
+            },
+            {
+              type: 'input',
+              name: 'lastName',
+              message: "Enter the employee's last name:"
+            },
+            {
+              type: 'list',
+              name: 'department',
+              message: 'Select the employee department:',
+              choices: departments.map((department) => department.name),
+            },
+            {
+              type: 'list',
+              name: 'roleId',
+              message: "Select the employee's role:",
+              choices: roles.map((role) => ({
+                name: role.title,
+                value: role.id
               }))
-            ]
-          }
-        ])
-        .then((answers) => {
-          pool.query(
-            'INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES (?, ?, ?, ?)',
-            [answers.firstName, answers.lastName, answers.roleId, answers.managerId],
-            (err, results) => {
-              if (err) {
-                console.error('Error adding employee:', err);
-              } else {
-                console.log('Employee added successfully!');
-              }
-              promptUser();
+            },
+            {
+              type: 'list',
+              name: 'managerId',
+              message: "Select the employee's manager:",
+              choices: [
+                { name: 'None', value: null },
+                ...employees.map((employee) => ({
+                  name: employee.name,
+                  value: employee.id
+                }))
+              ]
             }
-          );
-        });
+          ])
+          .then((answers) => {
+
+            const departmentName = answers.department;
+            const departmentId = departments.find((department) => department.name === departmentName).id;
+            const { firstName, lastName, roleId, managerId } = answers;
+
+            pool.query(
+              'INSERT INTO employee (first_name, last_name, role_id, manager_id, department_id) VALUES (?, ?, ?, ?, ?)',
+              [firstName, lastName, roleId, managerId, departmentId],
+              (err, results) => {
+                if (err) {
+                  console.error('Error adding employee:', err);
+                } else {
+                  console.log('Employee added successfully!');
+                }
+                promptUser();
+              }
+            );
+          });
+      });
     });
   });
 }
+
 
 // Update an employee role
 function updateEmployeeRole() {
@@ -390,7 +410,7 @@ function deleteEmployee() {
       .then((answers) => {
         pool.query('DELETE FROM employee WHERE id = ?', [answers.employeeId], (err, results) => {
           if (err) {
-            console.error('Error deleting employee:', err);
+            console.log('Cannot delete manager with employees. Please unassign any employees with the selected manager.');
           } else {
             console.log('Employee deleted successfully!');
           }
@@ -465,6 +485,51 @@ function viewEmployeesByManager() {
         pool.query(
           'SELECT * FROM employee WHERE manager_id = ?',
           [managerId],
+          (err, result) => {
+            if (err) {
+              console.error('Error retrieving employees:', err);
+            } else {
+              console.table(result);
+            }
+            promptUser();
+          }
+        );
+      });
+  });
+}
+
+// Fetch departments
+function fetchDepartments(callback) {
+  pool.query('SELECT * FROM department', (err, result) => {
+    if (err) {
+      console.error('Error retrieving departments:', err);
+    } else {
+      callback(result);
+    }
+  });
+}
+
+
+// View employees by department
+function viewEmployeesByDepartment() {
+  fetchDepartments((departments) => {
+    inquirer
+      .prompt([
+        {
+          type: 'list',
+          name: 'departmentId',
+          message: 'Select the department:',
+          choices: departments.map((department) => ({
+            name: department.name,
+            value: department.id
+          }))
+        }
+      ])
+      .then((answers) => {
+        const departmentId = answers.departmentId;
+        pool.query(
+          'SELECT * FROM employee WHERE department_id = ?',
+          [departmentId],
           (err, result) => {
             if (err) {
               console.error('Error retrieving employees:', err);
