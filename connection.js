@@ -509,7 +509,6 @@ function fetchDepartments(callback) {
   });
 }
 
-
 // View employees by department
 function viewEmployeesByDepartment() {
   fetchDepartments((departments) => {
@@ -542,6 +541,40 @@ function viewEmployeesByDepartment() {
       });
   });
 }
+
+// View total utilized budget of a department
+function viewDepartmentBudget() {
+  fetchDepartments((departments) => {
+    inquirer
+      .prompt([
+        {
+          type: 'list',
+          name: 'departmentId',
+          message: 'Select the department:',
+          choices: departments.map((department) => ({
+            name: department.name,
+            value: department.id
+          }))
+        }
+      ])
+      .then((answers) => {
+        const departmentId = answers.departmentId;
+        pool.query(
+          'SELECT SUM(role.salary) AS total_budget FROM employee JOIN role ON employee.role_id = role.id WHERE role.department_id = ?',
+          [departmentId],
+          (err, result) => {
+            if (err) {
+              console.error('Error retrieving department budget:', err);
+            } else {
+              console.log(`Total budget of this department: $${result[0].total_budget}`);
+            }
+            promptUser();
+          }
+        );
+      });
+  });
+}
+
 
 // Start the application
 promptUser();
